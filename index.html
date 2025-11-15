@@ -152,7 +152,7 @@
             height: auto;
             border-radius: 15px;
             border: 3px solid rgba(255, 255, 255, 0.8);
-            background: rgba(0, 5, 153, 0.95);
+            background: rgba(255, 255, 255, 0.95);
             padding: 10px;
         }
 
@@ -640,7 +640,7 @@
                 <p class="warning-text">⚠️ You've already used your spin! Each user gets only ONE chance to win.</p>
             </div>
 
-            <a href="https://tncstore.pk" class="visit-button">🛍️ VISIT TNC STORE</a>
+            <a href="https://tnc.store.pk" class="visit-button">🛍️ VISIT TNC STORE</a>
         </div>
     </div>
 
@@ -734,10 +734,24 @@
             userKey = await generateFingerprint();
             
             try {
-                const stored = await window.storage.get(`spin_${userKey}`, false);
-                
-                if (stored && stored.value) {
-                    const userData = JSON.parse(stored.value);
+                // Try window.storage first (for Claude artifacts)
+                if (window.storage && typeof window.storage.get === 'function') {
+                    const stored = await window.storage.get(`spin_${userKey}`, false);
+                    if (stored && stored.value) {
+                        const userData = JSON.parse(stored.value);
+                        showResult(userData);
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.log('Storage API not available, using localStorage');
+            }
+            
+            // Fallback to localStorage (for production/Vercel)
+            try {
+                const stored = localStorage.getItem(`spin_${userKey}`);
+                if (stored) {
+                    const userData = JSON.parse(stored);
                     showResult(userData);
                 }
             } catch (error) {
@@ -818,9 +832,17 @@
                         };
 
                         try {
-                            await window.storage.set(`spin_${userKey}`, JSON.stringify(userData), false);
+                            // Try window.storage first (for Claude artifacts)
+                            if (window.storage && typeof window.storage.set === 'function') {
+                                await window.storage.set(`spin_${userKey}`, JSON.stringify(userData), false);
+                            } else {
+                                // Use localStorage for production/Vercel
+                                localStorage.setItem(`spin_${userKey}`, JSON.stringify(userData));
+                            }
                         } catch (error) {
                             console.error('Storage error:', error);
+                            // Still use localStorage as fallback
+                            localStorage.setItem(`spin_${userKey}`, JSON.stringify(userData));
                         }
 
                         createConfetti();
